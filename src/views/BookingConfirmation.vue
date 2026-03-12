@@ -47,6 +47,7 @@
         <router-link to="/" class="text-cinema-gold hover:underline mt-4 inline-block transition-colors duration-200">Back to movies</router-link>
       </div>
     </main>
+    <Footer />
   </div>
 </template>
 
@@ -54,6 +55,7 @@
 import { ref, onMounted } from 'vue'
 import type { Booking, Showtime } from '../types'
 import Header from '../components/Layout/Header.vue'
+import Footer from '../components/Layout/Footer.vue'
 import Card from '../components/ui/Card.vue'
 import CardHeader from '../components/ui/CardHeader.vue'
 import Button from '../components/ui/Button.vue'

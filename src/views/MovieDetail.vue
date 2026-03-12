@@ -81,6 +81,7 @@
         </div>
       </Transition>
     </main>
+    <Footer />
   </div>
 </template>
 
@@ -89,6 +90,7 @@ import { ref, computed, onMounted } from 'vue'
 import type { Movie, Showtime } from '../types'
 import { api } from '../api/client'
 import Header from '../components/Layout/Header.vue'
+import Footer from '../components/Layout/Footer.vue'
 import Card from '../components/ui/Card.vue'
 import CardHeader from '../components/ui/CardHeader.vue'
 import Button from '../components/ui/Button.vue'

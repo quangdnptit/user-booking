@@ -54,6 +54,7 @@
         <router-link to="/login" class="text-cinema-gold hover:underline mt-4 inline-block">Log in</router-link>
       </div>
     </main>
+    <Footer />
   </div>
 </template>
 
@@ -62,6 +63,7 @@ import { computed } from 'vue'
 import type { PastBooking } from '../types'
 import { useAuth } from '../composables/useAuth'
 import Header from '../components/Layout/Header.vue'
+import Footer from '../components/Layout/Footer.vue'
 import Card from '../components/ui/Card.vue'
 import CardHeader from '../components/ui/CardHeader.vue'
 

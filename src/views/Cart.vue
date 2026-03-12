@@ -75,6 +75,7 @@
         </div>
       </Transition>
     </main>
+    <Footer />
   </div>
 </template>
 
@@ -83,6 +84,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCart } from '../composables/useCart'
 import Header from '../components/Layout/Header.vue'
+import Footer from '../components/Layout/Footer.vue'
 import Card from '../components/ui/Card.vue'
 import Button from '../components/ui/Button.vue'
 import TheaterMap from '../components/TheaterMap.vue'

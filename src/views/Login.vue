@@ -12,7 +12,7 @@
     <div class="w-full max-w-md relative z-10">
       <div class="text-center mb-10">
         <h1 class="font-display font-black text-4xl text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-amber-500 mb-2 tracking-tight drop-shadow-sm">
-          Reel Tickets
+          Galaxy Cinema
         </h1>
         <p class="text-gray-500 font-medium">Sign in to book movie tickets</p>
       </div>
