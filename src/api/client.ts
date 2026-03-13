@@ -9,7 +9,7 @@ import type {
   User,
   LoginCredentials,
 } from '../types'
-import { http, setAuthToken } from './http'
+import { http, setAuthToken, getAuthToken } from './http'
 
 interface LoginResponse {
   token: string
@@ -295,24 +295,30 @@ export const api = {
   },
 
   /**
-   * Book seats for a showtime (same service as seats, e.g. port 8888).
-   * POST {base}/showtimes/{showtimeId}/bookings
-   * Wire request/response body to your backend when ready.
+   * POST /api/v1/bookings — SeatsBookingRequest: showtime_id, seat_keys, user_id
    */
-  async bookShowtimeSeats(data: BookingRequest & { totalAmount: number; currency: string }): Promise<Booking> {
+  async createSeatsBooking(req: {
+    showtime_id: string
+    seat_keys: string[]
+    user_id: string
+  }): Promise<Booking> {
     const base =
       import.meta.env.VITE_SHOWTIMES_SEATS_BASE_URL ?? 'http://localhost:8888'
-    const url = `${base.replace(/\/$/, '')}/showtimes/${data.showtimeId}/bookings`
+    const url = `${base.replace(/\/$/, '')}/api/v1/bookings`
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    }
+    const token = getAuthToken()
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers,
       body: JSON.stringify({
-        showtime_id: data.showtimeId,
-        seat_keys: data.seatIds,
-        customer_name: data.customerName ?? '',
-        customer_email: data.customerEmail ?? '',
-        total_amount: data.totalAmount,
-        currency: data.currency,
+        showtime_id: req.showtime_id,
+        seat_keys: req.seat_keys,
+        user_id: req.user_id,
       }),
     })
     const body = res.headers.get('content-type')?.includes('application/json')
@@ -327,14 +333,20 @@ export const api = {
             : `Booking failed (${res.status})`
       throw new Error(msg)
     }
-    const o = body as Record<string, unknown>
+    const o = (typeof body === 'object' && body !== null ? body : {}) as Record<
+      string,
+      unknown
+    >
     const id = String(o.id ?? o.booking_id ?? `booking-${Date.now()}`)
+    const showtimes = await this.getShowtimes()
+    const st = showtimes.find((s) => s.id === req.showtime_id)
+    const fallbackTotal = st ? st.price * req.seat_keys.length : 0
     return {
       id,
-      showtimeId: data.showtimeId,
-      seatIds: data.seatIds,
-      totalAmount: Number(o.total_amount ?? o.totalAmount ?? data.totalAmount),
-      currency: String(o.currency ?? data.currency),
+      showtimeId: req.showtime_id,
+      seatIds: req.seat_keys,
+      totalAmount: Number(o.total_amount ?? o.totalAmount ?? fallbackTotal),
+      currency: String(o.currency ?? st?.currency ?? 'USD'),
       status: String(o.status ?? 'CONFIRMED'),
       createdAt: String(o.created_at ?? o.createdAt ?? new Date().toISOString()),
     }

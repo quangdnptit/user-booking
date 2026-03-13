@@ -142,16 +142,17 @@
           <Card v-if="selectedSeatIds.length > 0" class="transition-shadow duration-200">
             <CardHeader title="Confirm seats" :subtitle="`${selectedSeatIds.length} seat(s) · ${showtime.currency} ${total.toFixed(2)}`" />
             <form class="space-y-4" @submit.prevent="handleSubmit">
-              <div>
-                <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <Input id="name" v-model="customerName" placeholder="Your name" />
-              </div>
-              <div>
-                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <Input id="email" v-model="customerEmail" type="email" placeholder="your@email.com" />
-              </div>
+              <p v-if="!user" class="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                <router-link to="/login" class="font-medium text-cinema-gold hover:underline">Log in</router-link>
+                to complete your booking.
+              </p>
               <div class="flex flex-wrap gap-3">
-                <Button type="submit" class="w-full sm:w-auto" :loading="submitting">
+                <Button
+                  type="submit"
+                  class="w-full sm:w-auto"
+                  :loading="submitting"
+                  :disabled="!user"
+                >
                   Confirm booking
                 </Button>
               </div>
@@ -182,19 +183,18 @@ import Footer from '../components/Layout/Footer.vue'
 import Card from '../components/ui/Card.vue'
 import CardHeader from '../components/ui/CardHeader.vue'
 import Button from '../components/ui/Button.vue'
-import Input from '../components/ui/Input.vue'
+import { useAuth } from '../composables/useAuth'
 
 const props = defineProps<{ showtimeId: string }>()
 const router = useRouter()
 const { showSuccess, showError } = useToast()
+const { user } = useAuth()
 
 const showtime = ref<Showtime | null>(null)
 const seats = ref<Seat[]>([])
 const loading = ref(true)
 const seatsLoading = ref(true)
 const selectedSeatIds = ref<string[]>([])
-const customerName = ref('')
-const customerEmail = ref('')
 const submitting = ref(false)
 
 const rows = computed(() => [...new Set(seats.value.map((s) => s.row))].sort())
@@ -326,15 +326,17 @@ onMounted(async () => {
 
 async function handleSubmit() {
   if (!showtime.value || selectedSeatIds.value.length === 0) return
+  const uid = user.value?.id
+  if (!uid) {
+    showError('Please log in to book seats.')
+    return
+  }
   submitting.value = true
   try {
-    const booking = await api.bookShowtimeSeats({
-      showtimeId: showtime.value.id,
-      seatIds: selectedSeatIds.value,
-      customerName: customerName.value || undefined,
-      customerEmail: customerEmail.value || undefined,
-      totalAmount: total.value,
-      currency: showtime.value.currency,
+    const booking = await api.createSeatsBooking({
+      showtime_id: showtime.value.id,
+      seat_keys: [...selectedSeatIds.value],
+      user_id: uid,
     })
     const payload = {
       booking,
