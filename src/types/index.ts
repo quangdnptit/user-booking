@@ -28,6 +28,9 @@ export interface Screen {
 
 export type SeatType = 'STANDARD' | 'PREMIUM' | 'WHEELCHAIR'
 
+/** Aligns with backend SeatStatus */
+export type SeatStatus = 'AVAILABLE' | 'UNAVAILABLE' | 'BOOKED' | 'LOCKED'
+
 export interface Seat {
   id: string
   screenId: string
@@ -35,6 +38,8 @@ export interface Seat {
   seatNumber: number
   type: SeatType
   isActive: boolean
+  /** Set for showtime seats API; defaults to AVAILABLE when omitted */
+  status?: SeatStatus
   screen?: Screen
 }
 
