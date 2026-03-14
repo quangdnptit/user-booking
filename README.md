@@ -9,7 +9,14 @@ A simple user-facing movie tickets booking app built with the same tech stack as
 - **Select seats** — Interactive seat map; choose seats and enter name/email
 - **Confirmation** — Booking summary and reference after checkout
 
-The app talks to the same backend as the CMS (movies, theaters, showtimes, seats). If the backend exposes `POST /api/bookings`, real bookings are created; otherwise a mock confirmation is returned so you can demo the full flow.
+The app talks to the same backend as the CMS (movies, theaters, showtimes, seats). Bookings use the **user-booking** service (default `http://localhost:8888`):
+
+- `POST /api/v1/auth/login` — body `{ email, password }`; response should include a JWT (`token` or `access_token`) and user id (`id` or `user_id`) for bookings/profile.
+- `POST /api/v1/auth/register` — body `{ full_name, email, password }`. If the response includes the same token + id shape as login, the app signs the user in immediately; otherwise they are sent to sign in.
+- `POST /api/v1/bookings` — body `{ showtime_id, seat_keys, user_id }`
+- `GET /api/v1/users/{userId}/bookings` — **booking history** for Profile (Bearer token sent when logged in)
+
+Override base URL with `VITE_SHOWTIMES_SEATS_BASE_URL`. Login uses the same host unless you set `VITE_AUTH_BASE_URL`. History rows can be a JSON array or `{ "bookings": [...] }`. Each item is mapped flexibly (`id` / `booking_id`, `showtime_id`, `seat_keys`, `total_amount`, `status`, plus optional `movie_title`, `theater_name`, `screen_name`, `start_time`). Missing movie/theater/time are filled from CMS showtimes when possible.
 
 ## Setup
 

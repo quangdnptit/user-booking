@@ -12,6 +12,12 @@ const router = createRouter({
       meta: { public: true },
     },
     {
+      path: '/register',
+      name: 'Register',
+      component: () => import('../views/Register.vue'),
+      meta: { public: true },
+    },
+    {
       path: '/',
       name: 'Home',
       component: () => import('../views/Home.vue'),
@@ -35,12 +41,6 @@ const router = createRouter({
       path: '/booking/confirmation',
       name: 'BookingConfirmation',
       component: () => import('../views/BookingConfirmation.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/cart',
-      name: 'Cart',
-      component: () => import('../views/Cart.vue'),
       meta: { requiresAuth: true },
     },
     {
@@ -71,7 +71,7 @@ router.beforeEach((to, _from, next) => {
     next({ path: '/login', query: { redirect: to.fullPath } })
     return
   }
-  if (to.meta.public && isAuthenticated && to.path === '/login') {
+  if (to.meta.public && isAuthenticated && (to.path === '/login' || to.path === '/register')) {
     const redirectTo = (to.query.redirect as string) || '/'
     next(redirectTo)
     return

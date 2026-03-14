@@ -4,23 +4,25 @@
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
       <Transition name="fade" mode="out-in">
         <div v-if="loading" key="loading" class="py-20 flex justify-center">
-          <div class="w-10 h-10 border-2 border-cinema-gold border-t-transparent rounded-full animate-spin" />
+          <div class="w-10 h-10 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
         </div>
 
         <template v-else-if="movie">
           <div key="content" class="animate-fade-in-up">
             <div class="flex flex-col md:flex-row gap-8 mb-10">
-              <div class="shrink-0 w-full md:w-72 aspect-[2/3] rounded-xl overflow-hidden border border-cinema-border bg-cinema-surface shadow-sm">
+              <div
+                class="shrink-0 w-full md:w-72 aspect-[2/3] rounded-2xl overflow-hidden border border-white/[0.06] bg-cinema-surface shadow-cinema"
+              >
                 <img
-                  :src="movie.posterUrl || 'https://placehold.co/400x600/f5f4f0/6b6560?text=No+poster'"
+                  :src="movie.posterUrl || 'https://placehold.co/400x600/14181f/9ca3af?text=No+poster'"
                   :alt="movie.title"
                   class="w-full h-full object-cover transition-transform duration-350 hover:scale-[1.02]"
                 />
               </div>
               <div class="flex-1">
-                <h1 class="font-display font-bold text-3xl text-gray-800">{{ movie.title }}</h1>
+                <h1 class="font-display font-bold text-3xl text-white">{{ movie.title }}</h1>
                 <p class="text-cinema-muted mt-2">{{ movie.genre }} · {{ movie.durationMinutes }} min · {{ movie.rating }}</p>
-                <p class="mt-4 text-gray-700 leading-relaxed">{{ movie.description }}</p>
+                <p class="mt-4 text-gray-300 leading-relaxed">{{ movie.description }}</p>
               </div>
             </div>
 
@@ -34,17 +36,17 @@
                   v-for="(s, i) in showtimesForMovie"
                   :key="s.id"
                   :style="{ animationDelay: `${i * 30}ms` }"
-                  class="flex flex-col gap-3 py-4 px-4 rounded-lg border border-cinema-border bg-cinema-surface hover:border-cinema-gold/50 hover:shadow-sm transition-all duration-250 ease-smooth animate-fade-in-up opacity-0"
+                  class="flex flex-col gap-3 py-4 px-4 rounded-xl border border-white/[0.06] bg-cinema-surface hover:border-emerald-500/30 transition-all duration-250 ease-smooth animate-fade-in-up opacity-0"
                 >
                   <div class="flex flex-wrap items-center justify-between gap-4">
                     <div class="min-w-0">
-                      <span class="font-medium text-gray-800">{{ formatDateTime(s.startTime) }}</span>
+                      <span class="font-medium text-white">{{ formatDateTime(s.startTime) }}</span>
                       <span class="text-cinema-muted ml-3">{{ s.theater?.name }} · {{ s.screen?.name }}</span>
                       <p v-if="s.theater?.address" class="text-xs text-cinema-muted mt-1 truncate">{{ s.theater.address }}</p>
                       <button
                         v-if="s.theater?.address"
                         type="button"
-                        class="inline-flex items-center gap-1 mt-1.5 text-sm font-medium text-cinema-gold hover:underline"
+                        class="inline-flex items-center gap-1 mt-1.5 text-sm font-medium text-emerald-400 hover:underline"
                         @click="toggledMapId = toggledMapId === s.id ? null : s.id"
                       >
                         <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -55,14 +57,14 @@
                       </button>
                     </div>
                     <div class="flex items-center gap-4">
-                      <span class="font-semibold text-cinema-gold">{{ s.currency }} {{ s.price.toFixed(2) }}</span>
+                      <span class="font-semibold text-emerald-400">{{ s.currency }} {{ s.price.toFixed(2) }}</span>
                       <router-link :to="`/showtime/${s.id}/seats`">
                         <Button>Select seats</Button>
                       </router-link>
                     </div>
                   </div>
                   <Transition name="fade">
-                    <div v-if="s.theater?.address && toggledMapId === s.id" class="pt-2 border-t border-cinema-border">
+                    <div v-if="s.theater?.address && toggledMapId === s.id" class="pt-2 border-t border-white/[0.06]">
                       <TheaterMap
                         :name="s.theater.name"
                         :address="s.theater.address"
@@ -77,7 +79,9 @@
 
         <div v-else key="empty" class="py-20 text-center text-cinema-muted">
           <p>Movie not found.</p>
-          <router-link to="/" class="text-cinema-gold hover:underline mt-2 inline-block transition-colors duration-200">Back to movies</router-link>
+          <router-link to="/" class="text-emerald-400 hover:underline mt-2 inline-block transition-colors duration-200"
+            >Back to movies</router-link
+          >
         </div>
       </Transition>
     </main>

@@ -4,28 +4,28 @@
     <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8">
       <Transition name="fade" mode="out-in">
         <div v-if="loading" key="loading" class="py-20 flex justify-center">
-          <div class="w-10 h-10 border-2 border-cinema-gold border-t-transparent rounded-full animate-spin" />
+          <div class="w-10 h-10 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
         </div>
 
         <template v-else-if="showtime">
           <div key="content">
             <div class="mb-8">
-              <router-link :to="`/movie/${showtime.movieId}`" class="text-sm text-cinema-gold hover:underline mb-2 inline-block transition-colors duration-200">
+              <router-link :to="`/movie/${showtime.movieId}`" class="text-sm text-emerald-400 hover:underline mb-2 inline-block transition-colors duration-200">
                 ← Back to showtime
               </router-link>
-          <h1 class="font-display font-bold text-2xl text-gray-800">{{ showtime.movie?.title }}</h1>
+          <h1 class="font-display font-bold text-2xl text-white">{{ showtime.movie?.title }}</h1>
           <p class="text-cinema-muted mt-1">
             {{ formatDateTime(showtime.startTime) }} · {{ showtime.theater?.name }} · {{ showtime.screen?.name }}
           </p>
-          <p class="mt-1 text-gray-800">
+          <p class="mt-1 text-gray-200">
             <span class="text-cinema-muted font-normal">Standard </span>
-            <span class="font-medium">{{ showtime.currency }} {{ seatPriceStandard.toFixed(2) }}</span>
+            <span class="font-medium text-white">{{ showtime.currency }} {{ seatPriceStandard.toFixed(2) }}</span>
             <span class="text-cinema-muted mx-1">·</span>
             <span class="text-cinema-muted font-normal">Premium </span>
-            <span class="font-medium">{{ showtime.currency }} {{ seatPricePremium.toFixed(2) }}</span>
+            <span class="font-medium text-white">{{ showtime.currency }} {{ seatPricePremium.toFixed(2) }}</span>
             <span class="text-cinema-muted mx-1">·</span>
             <span class="text-cinema-muted font-normal">Wheelchair </span>
-            <span class="font-medium">{{ showtime.currency }} {{ seatPriceWheelchair.toFixed(2) }}</span>
+            <span class="font-medium text-white">{{ showtime.currency }} {{ seatPriceWheelchair.toFixed(2) }}</span>
           </p>
         </div>
 
@@ -33,14 +33,14 @@
           <div v-if="seatsLoading" class="py-8 text-center text-cinema-muted">Loading seats...</div>
           <div v-else-if="seats.length === 0" class="py-8 text-center text-cinema-muted">No seats available.</div>
           <div v-else class="overflow-x-auto">
-            <div class="inline-block p-4 bg-cinema-surface rounded-lg border border-cinema-border">
+            <div class="inline-block p-4 bg-cinema-surface rounded-xl border border-white/[0.06]">
               <div v-for="row in rows" :key="row" class="flex gap-0.5 items-center mb-1">
                 <span class="w-7 text-xs font-medium text-cinema-muted">{{ row }}</span>
                 <div class="flex gap-0.5">
                   <template v-for="num in maxCol" :key="`${row}-${num}`">
                     <span
                       v-if="!seatAt(row, num)"
-                      class="w-9 h-9 rounded-md bg-gray-100 border border-gray-200/80"
+                      class="w-9 h-9 rounded-md bg-white/[0.04] border border-white/[0.08]"
                       aria-hidden="true"
                     />
                     <!-- Only AVAILABLE seats are real buttons — nothing to click otherwise -->
@@ -48,7 +48,7 @@
                       v-else-if="isSeatSelectable(seatAt(row, num)!)"
                       type="button"
                       :class="[
-                        'w-9 h-9 rounded-md text-sm font-semibold shadow-sm transition-all duration-200 ease-smooth focus:outline-none focus:ring-2 focus:ring-cinema-gold focus:ring-offset-1',
+                        'w-9 h-9 rounded-md text-sm font-semibold shadow-sm transition-all duration-200 ease-smooth focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-cinema-dark',
                         getSelectableSeatClass(seatAt(row, num)!),
                       ]"
                       :title="getSeatTitle(row, num)"
@@ -73,14 +73,14 @@
                 </div>
               </div>
             </div>
-            <p class="mt-4 text-sm text-gray-600 mb-3">
-              Tap a seat to select. <strong class="text-gray-800">Booked</strong>,
-              <strong class="text-gray-800">locked</strong>, and
-              <strong class="text-gray-800">unavailable</strong> seats cannot be chosen.
+            <p class="mt-4 text-sm text-cinema-muted mb-3">
+              Tap a seat to select. <strong class="text-gray-200">Booked</strong>,
+              <strong class="text-gray-200">locked</strong>, and
+              <strong class="text-gray-200">unavailable</strong> seats cannot be chosen.
             </p>
-            <div class="rounded-lg bg-gray-50 border border-gray-100 p-4 mb-4">
+            <div class="rounded-xl bg-cinema-surface border border-white/[0.06] p-4 mb-4">
               <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Can choose</p>
-              <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-700 mb-4">
+              <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-300 mb-4">
                 <span class="flex items-center gap-2"
                   ><span
                     class="w-6 h-6 rounded shrink-0 bg-gray-400 shadow-sm border border-gray-500"
@@ -111,27 +111,27 @@
                 >
               </div>
               <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Cannot choose</p>
-              <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-700">
+              <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-300">
                 <span class="flex items-center gap-2 max-w-[14rem]"
                   ><span
                     class="w-6 h-6 rounded shrink-0 border-2 border-red-800 bg-red-600 shadow-sm"
                     aria-hidden="true"
                   />
-                  <span><strong class="text-red-800">Booked</strong> — already sold</span></span
+                  <span><strong class="text-red-400">Booked</strong> — already sold</span></span
                 >
                 <span class="flex items-center gap-2 max-w-[14rem]"
                   ><span
                     class="w-6 h-6 rounded shrink-0 border-2 border-amber-700 bg-amber-500 shadow-sm"
                     aria-hidden="true"
                   />
-                  <span><strong class="text-amber-800">Locked</strong> — held / not for sale</span></span
+                  <span><strong class="text-amber-400">Locked</strong> — held / not for sale</span></span
                 >
                 <span class="flex items-center gap-2 max-w-[14rem]"
                   ><span
                     class="w-6 h-6 rounded shrink-0 border-2 border-dashed border-stone-600 bg-stone-500"
                     aria-hidden="true"
                   />
-                  <span><strong class="text-stone-700">Unavailable</strong> — out of service</span></span
+                  <span><strong class="text-stone-400">Unavailable</strong> — out of service</span></span
                 >
               </div>
             </div>
@@ -142,8 +142,8 @@
           <Card v-if="selectedSeatIds.length > 0" class="transition-shadow duration-200">
             <CardHeader title="Confirm seats" :subtitle="`${selectedSeatIds.length} seat(s) · ${showtime.currency} ${total.toFixed(2)}`" />
             <form class="space-y-4" @submit.prevent="handleSubmit">
-              <p v-if="!user" class="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                <router-link to="/login" class="font-medium text-cinema-gold hover:underline">Log in</router-link>
+              <p v-if="!user" class="text-sm text-amber-200 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2">
+                <router-link to="/login" class="font-medium text-emerald-400 hover:underline">Log in</router-link>
                 to complete your booking.
               </p>
               <div class="flex flex-wrap gap-3">
@@ -164,7 +164,7 @@
 
         <div v-else key="empty" class="py-20 text-center text-cinema-muted">
           <p>Showtime not found.</p>
-          <router-link to="/" class="text-cinema-gold hover:underline mt-2 inline-block transition-colors duration-200">Back to movies</router-link>
+          <router-link to="/" class="text-emerald-400 hover:underline mt-2 inline-block transition-colors duration-200">Back to movies</router-link>
         </div>
       </Transition>
     </main>
@@ -266,7 +266,7 @@ function getSelectableSeatClass(seat: Seat): string {
   if (selected) {
     return 'bg-emerald-500 text-white ring-2 ring-emerald-600 ring-offset-1 shadow-md hover:bg-emerald-600'
   }
-  return `${SEAT_TYPE_STYLE[seat.type]} text-white hover:brightness-110 hover:ring-2 hover:ring-cinema-gold hover:ring-offset-1 cursor-pointer`
+  return `${SEAT_TYPE_STYLE[seat.type]} text-white hover:brightness-110 hover:ring-2 hover:ring-emerald-400/50 hover:ring-offset-2 hover:ring-offset-cinema-dark cursor-pointer`
 }
 
 /** Blocked seats: not clickable — booked / locked / unavailable */

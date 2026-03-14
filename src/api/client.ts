@@ -8,15 +8,26 @@ import type {
   Booking,
   User,
   LoginCredentials,
+  RegisterPayload,
+  PastBooking,
 } from '../types'
 import { http, setAuthToken, getAuthToken } from './http'
 
-interface LoginResponse {
-  token: string
-  id: string
-  email: string
-  fullName: string
-  role?: string
+/** New login API (user-booking :8888) — accepts several response shapes */
+function parseLoginBody(body: Record<string, unknown>): { token: string; id: string; email: string; name: string } {
+  const token = String(
+    body.token ?? body.access_token ?? body.accessToken ?? ''
+  )
+  const id = String(body.id ?? body.user_id ?? body.userId ?? '')
+  const email = String(body.email ?? '')
+  const name = String(
+    body.full_name ??
+      body.fullName ??
+      body.name ??
+      body.display_name ??
+      email
+  )
+  return { token, id, email, name }
 }
 
 interface BackendMovie {
@@ -152,16 +163,105 @@ function mapSeat(
 }
 
 export const api = {
+  /**
+   * POST /api/v1/auth/login — user-booking service (default :8888).
+   * Body: { email, password }. Override base with VITE_AUTH_BASE_URL or VITE_SHOWTIMES_SEATS_BASE_URL.
+   */
   async login(credentials: LoginCredentials): Promise<{ user: User; token: string }> {
-    const res = await http.post<LoginResponse>('/api/auth/login', {
-      email: credentials.email,
-      password: credentials.password,
+    const base =
+      import.meta.env.VITE_AUTH_BASE_URL ??
+      import.meta.env.VITE_SHOWTIMES_SEATS_BASE_URL ??
+      'http://localhost:8888'
+    const url = `${base.replace(/\/$/, '')}/api/v1/auth/login`
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        email: credentials.email,
+        password: credentials.password,
+      }),
     })
-    setAuthToken(res.token)
-    return {
-      user: { id: res.id, email: res.email, name: res.fullName ?? res.email },
-      token: res.token,
+    const body = res.headers.get('content-type')?.includes('application/json')
+      ? ((await res.json().catch(() => ({}))) as Record<string, unknown>)
+      : {}
+    if (!res.ok) {
+      const msg =
+        typeof body.message === 'string'
+          ? body.message
+          : typeof body.error === 'string'
+            ? body.error
+            : `Login failed (${res.status})`
+      throw new Error(msg)
     }
+    const nested =
+      body.user && typeof body.user === 'object'
+        ? { ...body, ...(body.user as Record<string, unknown>) }
+        : body
+    const { token, id, email, name } = parseLoginBody(nested)
+    if (!token || !id) {
+      throw new Error('Invalid login response: missing token or user id')
+    }
+    setAuthToken(token)
+    return {
+      user: { id, email: email || credentials.email, name: name || email || credentials.email },
+      token,
+    }
+  },
+
+  /**
+   * POST /api/v1/auth/register — body: full_name, email, password (snake_case).
+   * If response includes token + user id, returns session so client can log in immediately.
+   */
+  async register(
+    payload: RegisterPayload
+  ): Promise<{ session: { user: User; token: string } | null }> {
+    const base =
+      import.meta.env.VITE_AUTH_BASE_URL ??
+      import.meta.env.VITE_SHOWTIMES_SEATS_BASE_URL ??
+      'http://localhost:8888'
+    const url = `${base.replace(/\/$/, '')}/api/v1/auth/register`
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        full_name: payload.full_name,
+        email: payload.email,
+        password: payload.password,
+      }),
+    })
+    const body = res.headers.get('content-type')?.includes('application/json')
+      ? ((await res.json().catch(() => ({}))) as Record<string, unknown>)
+      : {}
+    if (!res.ok) {
+      const msg =
+        typeof body.message === 'string'
+          ? body.message
+          : typeof body.error === 'string'
+            ? body.error
+            : Array.isArray(body.errors)
+              ? String((body.errors as unknown[])[0])
+              : `Registration failed (${res.status})`
+      throw new Error(msg)
+    }
+    const nested =
+      body.user && typeof body.user === 'object'
+        ? { ...body, ...(body.user as Record<string, unknown>) }
+        : body
+    const { token, id, email, name } = parseLoginBody(nested)
+    if (token && id) {
+      setAuthToken(token)
+      return {
+        session: {
+          user: {
+            id,
+            email: email || payload.email,
+            name: name || payload.full_name || email,
+          },
+          token,
+        },
+      }
+    }
+    return { session: null }
   },
 
   async logout(): Promise<void> {
@@ -350,6 +450,92 @@ export const api = {
       status: String(o.status ?? 'CONFIRMED'),
       createdAt: String(o.created_at ?? o.createdAt ?? new Date().toISOString()),
     }
+  },
+
+  /**
+   * GET /api/v1/users/{userId}/bookings — booking history (user-booking service :8888).
+   * Accepts array or { bookings: [...] }. Enriches from showtimes when title/theater missing.
+   */
+  async getBookingHistory(userId: string): Promise<PastBooking[]> {
+    const base =
+      import.meta.env.VITE_SHOWTIMES_SEATS_BASE_URL ?? 'http://localhost:8888'
+    const url = `${base.replace(/\/$/, '')}/api/v1/users/${encodeURIComponent(userId)}/bookings`
+    const headers: HeadersInit = { Accept: 'application/json' }
+    const token = getAuthToken()
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
+    const res = await fetch(url, { method: 'GET', headers })
+    const body = res.headers.get('content-type')?.includes('application/json')
+      ? await res.json().catch(() => null)
+      : null
+    if (!res.ok) {
+      const msg =
+        typeof body === 'object' && body !== null && 'message' in body
+          ? String((body as { message: unknown }).message)
+          : `Could not load booking history (${res.status})`
+      throw new Error(msg)
+    }
+    const list: unknown[] = Array.isArray(body)
+      ? body
+      : body &&
+          typeof body === 'object' &&
+          Array.isArray((body as { bookings?: unknown[] }).bookings)
+        ? (body as { bookings: unknown[] }).bookings
+        : []
+
+    let showtimes: Showtime[] = []
+    try {
+      showtimes = await this.getShowtimes()
+    } catch {
+      // enrich best-effort
+    }
+
+    return list.map((item) => {
+        const o = item as Record<string, unknown>
+        const id = String(o.id ?? o.booking_id ?? '')
+        const showtimeId = String(o.showtime_id ?? o.showtimeId ?? '')
+        const seatKeys = o.seat_keys ?? o.seatKeys
+        const keys = Array.isArray(seatKeys)
+          ? seatKeys.map((k) => String(k))
+          : []
+        const st = showtimes.find((s) => s.id === showtimeId)
+        const movieTitle = String(
+          o.movie_title ?? o.movieTitle ?? st?.movie?.title ?? 'Booking'
+        )
+        const theaterName = String(
+          o.theater_name ??
+            o.theaterName ??
+            st?.theater?.name ??
+            '—'
+        )
+        const screenName = String(
+          o.screen_name ?? o.screenName ?? st?.screen?.name ?? '—'
+        )
+        const startTime = String(
+          o.start_time ??
+            o.startTime ??
+            st?.startTime ??
+            o.created_at ??
+            o.createdAt ??
+            new Date().toISOString()
+        )
+        const totalAmount = Number(
+          o.total_amount ?? o.totalAmount ?? o.amount ?? 0
+        )
+        const currency = String(o.currency ?? st?.currency ?? 'USD')
+        const status = String(o.status ?? o.booking_status ?? 'CONFIRMED')
+        return {
+          id: id || `row-${showtimeId}-${keys.join(',')}`,
+          movieTitle,
+          theaterName,
+          screenName,
+          startTime,
+          seatCount: keys.length || Number(o.seat_count ?? o.seatCount ?? 0) || 0,
+          totalAmount,
+          currency,
+          status,
+        } satisfies PastBooking
+    })
   },
 
   async createBooking(data: BookingRequest): Promise<Booking> {

@@ -93,6 +93,13 @@ export interface LoginCredentials {
   password: string
 }
 
+/** POST /api/v1/auth/register */
+export interface RegisterPayload {
+  email: string
+  password: string
+  full_name: string
+}
+
 export interface CartItem {
   id: string
   showtimeId: string

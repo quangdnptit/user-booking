@@ -47,6 +47,21 @@ export function useAuth() {
     saveStored()
   }
 
+  /** Register then sign in if API returns a session; otherwise caller redirects to login. */
+  async function register(fullName: string, email: string, password: string) {
+    const { session } = await api.register({
+      full_name: fullName,
+      email,
+      password,
+    })
+    if (session) {
+      user.value = session.user
+      token.value = session.token
+      saveStored()
+    }
+    return { loggedIn: !!session }
+  }
+
   async function logout() {
     await api.logout()
     user.value = null
@@ -59,6 +74,7 @@ export function useAuth() {
     isLoading: computed(() => isLoading.value),
     isAuthenticated,
     login,
+    register,
     logout,
   }
 }

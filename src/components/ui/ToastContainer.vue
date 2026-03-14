@@ -16,7 +16,7 @@
           <div
             v-for="toast in toasts"
             :key="toast.id"
-            class="pointer-events-auto w-full max-w-sm overflow-hidden rounded-xl bg-cinema-panel shadow-lg border border-cinema-border"
+            class="pointer-events-auto w-full max-w-sm overflow-hidden rounded-xl bg-cinema-panel shadow-cinema border border-white/[0.08]"
           >
             <div class="p-4 flex items-start">
               <div class="flex-shrink-0">
@@ -34,13 +34,13 @@
                 </svg>
               </div>
               <div class="ml-3 w-0 flex-1 pt-0.5">
-                <p class="text-sm font-medium text-gray-800">{{ toast.message }}</p>
+                <p class="text-sm font-medium text-gray-100">{{ toast.message }}</p>
               </div>
               <div class="ml-4 flex flex-shrink-0">
                 <button
                   type="button"
                   @click="removeToast(toast.id)"
-                  class="inline-flex rounded-md text-cinema-muted hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-cinema-gold/40"
+                  class="inline-flex rounded-md text-cinema-muted hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
                 >
                   <span class="sr-only">Close</span>
                   <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

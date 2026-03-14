@@ -10,10 +10,19 @@
   }
   body {
     margin: 0;
-    @apply min-h-screen font-sans bg-cinema-dark text-gray-800 antialiased;
+    @apply min-h-screen font-sans bg-cinema-dark text-gray-200 antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(52, 211, 153, 0.07), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 50%, rgba(34, 211, 238, 0.04), transparent),
+      radial-gradient(ellipse 50% 30% at 0% 80%, rgba(52, 211, 153, 0.03), transparent);
+    background-attachment: fixed;
   }
   #app {
     @apply min-h-screen;
+  }
+  /* Inputs must not rely on inherit alone — otherwise value color = parent muted = same as placeholder feel */
+  input.ui-input {
+    color: #fff;
   }
 }
 
