@@ -11,23 +11,53 @@ import type {
   RegisterPayload,
   PastBooking,
 } from '../types'
-import { http, setAuthToken, getAuthToken, API_BASE } from './http'
+import {
+  http,
+  setAuthSession,
+  persistAuthSession,
+  clearAuthSession,
+  API_BASE,
+  authorizedFetch,
+} from './http'
 
-/** New login API (user-booking :8888) — accepts several response shapes */
-function parseLoginBody(body: Record<string, unknown>): { token: string; id: string; email: string; name: string } {
-  const token = String(
-    body.token ?? body.access_token ?? body.accessToken ?? ''
+/** BE LoginResult + common json tags */
+function parseLoginResult(body: Record<string, unknown>): {
+  accessToken: string
+  refreshToken: string
+  expiresInSec: number
+  refreshExpiresInSec: number
+  userId: string
+  email: string
+  fullName: string
+  avatar?: string
+  amount?: number
+} {
+  const accessToken = String(
+    body.AccessToken ?? body.access_token ?? body.accessToken ?? body.token ?? ''
   )
-  const id = String(body.id ?? body.user_id ?? body.userId ?? '')
-  const email = String(body.email ?? '')
-  const name = String(
-    body.full_name ??
-      body.fullName ??
-      body.name ??
-      body.display_name ??
-      email
+  const refreshToken = String(
+    body.RefreshToken ?? body.refresh_token ?? body.refreshToken ?? ''
   )
-  return { token, id, email, name }
+  const expiresInSec = Number(body.ExpiresIn ?? body.expires_in ?? body.expiresIn ?? 3600)
+  const refreshExpiresInSec = Number(
+    body.RefreshExpiresIn ?? body.refresh_expires_in ?? body.refreshExpiresIn ?? 604800
+  )
+  const userId = String(body.UserID ?? body.user_id ?? body.userId ?? body.id ?? '')
+  const email = String(body.Email ?? body.email ?? '')
+  const fullName = String(body.FullName ?? body.full_name ?? body.fullName ?? email)
+  const avatar = body.Avatar != null ? String(body.Avatar) : body.avatar != null ? String(body.avatar) : undefined
+  const amount = body.Amount != null ? Number(body.Amount) : body.amount != null ? Number(body.amount) : undefined
+  return {
+    accessToken,
+    refreshToken,
+    expiresInSec: expiresInSec > 0 ? expiresInSec : 3600,
+    refreshExpiresInSec: refreshExpiresInSec > 0 ? refreshExpiresInSec : 604800,
+    userId,
+    email,
+    fullName,
+    avatar,
+    amount,
+  }
 }
 
 interface BackendMovie {
@@ -163,8 +193,12 @@ function mapSeat(
 }
 
 export const api = {
-  /** POST /api/v1/auth/login — same host as VITE_API_BASE_URL (default :8888). */
-  async login(credentials: LoginCredentials): Promise<{ user: User; token: string }> {
+  /** POST /api/v1/auth/login — LoginResult: AccessToken, RefreshToken, ExpiresIn, … */
+  async login(credentials: LoginCredentials): Promise<{
+    user: User
+    accessToken: string
+    refreshToken: string
+  }> {
     const url = `${API_BASE}/api/v1/auth/login`
     const res = await fetch(url, {
       method: 'POST',
@@ -190,15 +224,34 @@ export const api = {
       body.user && typeof body.user === 'object'
         ? { ...body, ...(body.user as Record<string, unknown>) }
         : body
-    const { token, id, email, name } = parseLoginBody(nested)
-    if (!token || !id) {
-      throw new Error('Invalid login response: missing token or user id')
+    const r = parseLoginResult(nested)
+    if (!r.accessToken || !r.userId) {
+      throw new Error('Invalid login response: missing access token or user id')
     }
-    setAuthToken(token)
-    return {
-      user: { id, email: email || credentials.email, name: name || email || credentials.email },
-      token,
+    if (!r.refreshToken) {
+      throw new Error('Invalid login response: missing refresh token')
     }
+    setAuthSession({
+      accessToken: r.accessToken,
+      refreshToken: r.refreshToken,
+      expiresInSec: r.expiresInSec,
+      refreshExpiresInSec: r.refreshExpiresInSec,
+    })
+    const user: User = {
+      id: r.userId,
+      email: r.email || credentials.email,
+      name: r.fullName || r.email || credentials.email,
+      avatar: r.avatar,
+      walletAmount: r.amount,
+    }
+    persistAuthSession({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatar: user.avatar,
+      amount: r.amount,
+    })
+    return { user, accessToken: r.accessToken, refreshToken: r.refreshToken }
   },
 
   /**
@@ -207,7 +260,9 @@ export const api = {
    */
   async register(
     payload: RegisterPayload
-  ): Promise<{ session: { user: User; token: string } | null }> {
+  ): Promise<{
+    session: { user: User; accessToken: string; refreshToken: string } | null
+  }> {
     const url = `${API_BASE}/api/v1/auth/register`
     const res = await fetch(url, {
       method: 'POST',
@@ -236,25 +291,35 @@ export const api = {
       body.user && typeof body.user === 'object'
         ? { ...body, ...(body.user as Record<string, unknown>) }
         : body
-    const { token, id, email, name } = parseLoginBody(nested)
-    if (token && id) {
-      setAuthToken(token)
-      return {
-        session: {
-          user: {
-            id,
-            email: email || payload.email,
-            name: name || payload.full_name || email,
-          },
-          token,
-        },
+    const r = parseLoginResult(nested)
+    if (r.accessToken && r.userId && r.refreshToken) {
+      setAuthSession({
+        accessToken: r.accessToken,
+        refreshToken: r.refreshToken,
+        expiresInSec: r.expiresInSec,
+        refreshExpiresInSec: r.refreshExpiresInSec,
+      })
+      const user: User = {
+        id: r.userId,
+        email: r.email || payload.email,
+        name: r.fullName || payload.full_name || r.email,
+        avatar: r.avatar,
+        walletAmount: r.amount,
       }
+      persistAuthSession({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        amount: r.amount,
+      })
+      return { session: { user, accessToken: r.accessToken, refreshToken: r.refreshToken } }
     }
     return { session: null }
   },
 
   async logout(): Promise<void> {
-    setAuthToken(null)
+    clearAuthSession()
   },
 
   async getMovies(): Promise<Movie[]> {
@@ -390,16 +455,9 @@ export const api = {
     user_id: string
   }): Promise<Booking> {
     const url = `${API_BASE}/api/v1/bookings`
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    }
-    const token = getAuthToken()
-    if (token) headers['Authorization'] = `Bearer ${token}`
-
-    const res = await fetch(url, {
+    const res = await authorizedFetch(url, {
       method: 'POST',
-      headers,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         showtime_id: req.showtime_id,
         seat_keys: req.seat_keys,
@@ -443,11 +501,7 @@ export const api = {
    */
   async getBookingHistory(userId: string): Promise<PastBooking[]> {
     const url = `${API_BASE}/api/v1/users/${encodeURIComponent(userId)}/bookings`
-    const headers: HeadersInit = { Accept: 'application/json' }
-    const token = getAuthToken()
-    if (token) headers['Authorization'] = `Bearer ${token}`
-
-    const res = await fetch(url, { method: 'GET', headers })
+    const res = await authorizedFetch(url, { method: 'GET' })
     const body = res.headers.get('content-type')?.includes('application/json')
       ? await res.json().catch(() => null)
       : null

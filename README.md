@@ -11,7 +11,8 @@ Vue 3 + Vite + TypeScript + Tailwind. **All HTTP calls go to one API** — defau
 Used for:
 
 - **CMS-style routes** (via `http` client): `/api/movies`, `/api/showtimes`, `/api/theaters`, `/api/seats/room/:id`, `/api/bookings`, etc.
-- **Auth**: `POST /api/v1/auth/login`, `POST /api/v1/auth/register`
+- **Auth**: `POST /api/v1/auth/login` → `AccessToken`, `RefreshToken`, `ExpiresIn`, `RefreshExpiresIn`, `UserID`, `Email`, `FullName`, …  
+  **`POST /api/v1/auth/refresh`** — body `{ "refresh_token": "..." }`, same token fields back. Called automatically before requests when access token is near expiry, and once on **401** before retry.
 - **Bookings**: `POST /api/v1/bookings` — `{ showtime_id, seat_keys, user_id }`
 - **Seats**: `GET /showtimes/:showtimeId/seats`
 - **History**: `GET /api/v1/users/:userId/bookings`

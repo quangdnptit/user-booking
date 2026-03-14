@@ -1,23 +1,52 @@
 import { ref, computed, onMounted } from 'vue'
 import type { User } from '../types'
 import { api } from '../api/client'
-import { setAuthToken } from '../api/http'
-
-const AUTH_KEY = 'reel-user-booking-auth'
+import { setAuthSession, clearAuthSession } from '../api/http'
+import type { StoredAuthSession } from '../api/authSession'
+import { AUTH_STORAGE_KEY } from '../api/authSession'
 
 const user = ref<User | null>(null)
-const token = ref<string | null>(null)
 const isLoading = ref(true)
 
 function loadStored() {
   try {
-    const raw = localStorage.getItem(AUTH_KEY)
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
     if (!raw) return
-    const { user: u, token: t } = JSON.parse(raw) as { user: User; token: string }
-    if (u && t) {
-      user.value = u
-      token.value = t
-      setAuthToken(t)
+    const data = JSON.parse(raw) as
+      | StoredAuthSession
+      | { user: User; token: string }
+
+    if ('accessToken' in data && 'refreshToken' in data && data.accessToken && data.refreshToken) {
+      user.value = {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        avatar: data.user.avatar,
+        walletAmount: data.user.amount,
+      }
+      if (Date.now() >= data.refreshExpiresAt) {
+        clearAuthSession()
+        user.value = null
+        return
+      }
+      setAuthSession({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        expiresInSec: Math.max(1, Math.floor((data.accessExpiresAt - Date.now()) / 1000)),
+        refreshExpiresInSec: Math.max(1, Math.floor((data.refreshExpiresAt - Date.now()) / 1000)),
+      })
+      return
+    }
+
+    const legacy = data as { user: User; token: string }
+    if (legacy.user && legacy.token) {
+      user.value = legacy.user
+      setAuthSession({
+        accessToken: legacy.token,
+        refreshToken: legacy.token,
+        expiresInSec: 86400,
+        refreshExpiresInSec: 86400 * 30,
+      })
     }
   } catch {
     // ignore
@@ -25,10 +54,33 @@ function loadStored() {
 }
 
 function saveStored() {
-  if (user.value && token.value) {
-    localStorage.setItem(AUTH_KEY, JSON.stringify({ user: user.value, token: token.value }))
-  } else {
-    localStorage.removeItem(AUTH_KEY)
+  if (!user.value) {
+    clearAuthSession()
+    return
+  }
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
+    if (raw) {
+      const data = JSON.parse(raw) as StoredAuthSession
+      if (data.accessToken && data.refreshToken) {
+        localStorage.setItem(
+          AUTH_STORAGE_KEY,
+          JSON.stringify({
+            ...data,
+            user: {
+              id: user.value.id,
+              email: user.value.email,
+              name: user.value.name,
+              avatar: user.value.avatar,
+              amount: user.value.walletAmount,
+            },
+          })
+        )
+        return
+      }
+    }
+  } catch {
+    // fall through
   }
 }
 
@@ -43,11 +95,9 @@ export function useAuth() {
   async function login(email: string, password: string) {
     const res = await api.login({ email, password })
     user.value = res.user
-    token.value = res.token
     saveStored()
   }
 
-  /** Register then sign in if API returns a session; otherwise caller redirects to login. */
   async function register(fullName: string, email: string, password: string) {
     const { session } = await api.register({
       full_name: fullName,
@@ -56,7 +106,6 @@ export function useAuth() {
     })
     if (session) {
       user.value = session.user
-      token.value = session.token
       saveStored()
     }
     return { loggedIn: !!session }
@@ -65,8 +114,7 @@ export function useAuth() {
   async function logout() {
     await api.logout()
     user.value = null
-    token.value = null
-    saveStored()
+    clearAuthSession()
   }
 
   return {
