@@ -65,7 +65,7 @@ export interface BookingRequest {
   customerEmail?: string
 }
 
-/** POST localhost:8888/api/v1/bookings */
+/** POST {VITE_API_BASE_URL}/api/v1/bookings */
 export interface SeatsBookingRequest {
   showtime_id: string
   seat_keys: string[]

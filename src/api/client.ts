@@ -11,7 +11,7 @@ import type {
   RegisterPayload,
   PastBooking,
 } from '../types'
-import { http, setAuthToken, getAuthToken } from './http'
+import { http, setAuthToken, getAuthToken, API_BASE } from './http'
 
 /** New login API (user-booking :8888) — accepts several response shapes */
 function parseLoginBody(body: Record<string, unknown>): { token: string; id: string; email: string; name: string } {
@@ -163,16 +163,9 @@ function mapSeat(
 }
 
 export const api = {
-  /**
-   * POST /api/v1/auth/login — user-booking service (default :8888).
-   * Body: { email, password }. Override base with VITE_AUTH_BASE_URL or VITE_SHOWTIMES_SEATS_BASE_URL.
-   */
+  /** POST /api/v1/auth/login — same host as VITE_API_BASE_URL (default :8888). */
   async login(credentials: LoginCredentials): Promise<{ user: User; token: string }> {
-    const base =
-      import.meta.env.VITE_AUTH_BASE_URL ??
-      import.meta.env.VITE_SHOWTIMES_SEATS_BASE_URL ??
-      'http://localhost:8888'
-    const url = `${base.replace(/\/$/, '')}/api/v1/auth/login`
+    const url = `${API_BASE}/api/v1/auth/login`
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -215,11 +208,7 @@ export const api = {
   async register(
     payload: RegisterPayload
   ): Promise<{ session: { user: User; token: string } | null }> {
-    const base =
-      import.meta.env.VITE_AUTH_BASE_URL ??
-      import.meta.env.VITE_SHOWTIMES_SEATS_BASE_URL ??
-      'http://localhost:8888'
-    const url = `${base.replace(/\/$/, '')}/api/v1/auth/register`
+    const url = `${API_BASE}/api/v1/auth/register`
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -321,11 +310,9 @@ export const api = {
       .sort((a, b) => a.row.localeCompare(b.row) || a.seatNumber - b.seatNumber)
   },
 
-  /** Seats layout for a showtime (e.g. booking service on port 8888). */
+  /** Seats for a showtime — GET {API_BASE}/showtimes/:id/seats */
   async getSeatsByShowtime(showtimeId: string, fallbackScreenId?: string): Promise<Seat[]> {
-    const base =
-      import.meta.env.VITE_SHOWTIMES_SEATS_BASE_URL ?? 'http://localhost:8888'
-    const url = `${base.replace(/\/$/, '')}/showtimes/${showtimeId}/seats`
+    const url = `${API_BASE}/showtimes/${showtimeId}/seats`
     const res = await fetch(url, { headers: { Accept: 'application/json' } })
     if (!res.ok) {
       const text = await res.text()
@@ -402,9 +389,7 @@ export const api = {
     seat_keys: string[]
     user_id: string
   }): Promise<Booking> {
-    const base =
-      import.meta.env.VITE_SHOWTIMES_SEATS_BASE_URL ?? 'http://localhost:8888'
-    const url = `${base.replace(/\/$/, '')}/api/v1/bookings`
+    const url = `${API_BASE}/api/v1/bookings`
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
@@ -457,9 +442,7 @@ export const api = {
    * Accepts array or { bookings: [...] }. Enriches from showtimes when title/theater missing.
    */
   async getBookingHistory(userId: string): Promise<PastBooking[]> {
-    const base =
-      import.meta.env.VITE_SHOWTIMES_SEATS_BASE_URL ?? 'http://localhost:8888'
-    const url = `${base.replace(/\/$/, '')}/api/v1/users/${encodeURIComponent(userId)}/bookings`
+    const url = `${API_BASE}/api/v1/users/${encodeURIComponent(userId)}/bookings`
     const headers: HeadersInit = { Accept: 'application/json' }
     const token = getAuthToken()
     if (token) headers['Authorization'] = `Bearer ${token}`

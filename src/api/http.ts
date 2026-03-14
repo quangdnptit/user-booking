@@ -1,6 +1,11 @@
 import { useToast } from '../composables/useToast'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+/** All API traffic (movies, theaters, auth, bookings, seats). Override with VITE_API_BASE_URL. */
+export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8888').replace(
+  /\/$/,
+  ''
+)
+const BASE_URL = API_BASE
 
 let authToken: string | null = null
 
