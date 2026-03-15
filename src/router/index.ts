@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-
-const AUTH_KEY = 'reel-user-booking-auth'
+import { store } from '../store'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -54,18 +53,7 @@ const router = createRouter({
 })
 
 router.beforeEach((to, _from, next) => {
-  let user: unknown = null
-  try {
-    const raw = localStorage.getItem(AUTH_KEY)
-    if (raw) {
-      const data = JSON.parse(raw) as { user?: unknown }
-      user = data?.user
-    }
-  } catch {
-    // ignore
-  }
-
-  const isAuthenticated = !!user
+  const isAuthenticated = !!store.state.auth.user
 
   if (to.meta.requiresAuth && !isAuthenticated) {
     next({ path: '/login', query: { redirect: to.fullPath } })

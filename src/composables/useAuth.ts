@@ -1,51 +1,26 @@
 import { ref, computed, onMounted } from 'vue'
 import type { User } from '../types'
 import { api } from '../api/client'
-import { setAuthSession, clearAuthSession } from '../api/http'
+import { clearAuthSession, tryRefreshFromCookie, redirectToLogin } from '../api/http'
 import type { StoredAuthSession } from '../api/authSession'
 import { AUTH_STORAGE_KEY } from '../api/authSession'
+import { store } from '../store'
 
-const user = ref<User | null>(null)
 const isLoading = ref(true)
 
 function loadStored() {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY)
     if (!raw) return
-    const data = JSON.parse(raw) as
-      | StoredAuthSession
-      | { user: User; token: string }
-
-    if ('accessToken' in data && 'refreshToken' in data && data.accessToken && data.refreshToken) {
-      user.value = {
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.name,
-        avatar: data.user.avatar,
-        walletAmount: data.user.amount,
-      }
-      if (Date.now() >= data.refreshExpiresAt) {
-        clearAuthSession()
-        user.value = null
-        return
-      }
-      setAuthSession({
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
-        expiresInSec: Math.max(1, Math.floor((data.accessExpiresAt - Date.now()) / 1000)),
-        refreshExpiresInSec: Math.max(1, Math.floor((data.refreshExpiresAt - Date.now()) / 1000)),
-      })
-      return
-    }
-
-    const legacy = data as { user: User; token: string }
-    if (legacy.user && legacy.token) {
-      user.value = legacy.user
-      setAuthSession({
-        accessToken: legacy.token,
-        refreshToken: legacy.token,
-        expiresInSec: 86400,
-        refreshExpiresInSec: 86400 * 30,
+    const data = JSON.parse(raw) as StoredAuthSession | { user: User; token?: string }
+    const user = 'user' in data ? data.user : null
+    if (user && user.id && user.email) {
+      store.commit('auth/SET_USER', {
+        id: user.id,
+        email: user.email,
+        name: user.name ?? user.email,
+        avatar: user.avatar,
+        walletAmount: (user as { amount?: number }).amount ?? (user as User).walletAmount,
       })
     }
   } catch {
@@ -54,33 +29,24 @@ function loadStored() {
 }
 
 function saveStored() {
-  if (!user.value) {
+  const user = store.state.auth.user
+  if (!user) {
     clearAuthSession()
     return
   }
   try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
-    if (raw) {
-      const data = JSON.parse(raw) as StoredAuthSession
-      if (data.accessToken && data.refreshToken) {
-        localStorage.setItem(
-          AUTH_STORAGE_KEY,
-          JSON.stringify({
-            ...data,
-            user: {
-              id: user.value.id,
-              email: user.value.email,
-              name: user.value.name,
-              avatar: user.value.avatar,
-              amount: user.value.walletAmount,
-            },
-          })
-        )
-        return
-      }
+    const payload: StoredAuthSession = {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        amount: user.walletAmount,
+      },
     }
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload))
   } catch {
-    // fall through
+    // ignore
   }
 }
 
@@ -90,11 +56,16 @@ export function useAuth() {
     if (isLoading.value) isLoading.value = false
   })
 
-  const isAuthenticated = computed(() => !!user.value)
+  const user = computed(() => store.state.auth.user)
+  const isAuthenticated = computed(() => !!store.state.auth.user)
 
   async function login(email: string, password: string) {
     const res = await api.login({ email, password })
-    user.value = res.user
+    store.dispatch('auth/setSession', {
+      accessToken: res.accessToken,
+      expiresInSec: res.expiresInSec,
+      user: res.user,
+    })
     saveStored()
   }
 
@@ -105,7 +76,11 @@ export function useAuth() {
       password,
     })
     if (session) {
-      user.value = session.user
+      store.dispatch('auth/setSession', {
+        accessToken: session.accessToken,
+        expiresInSec: session.expiresInSec,
+        user: session.user,
+      })
       saveStored()
     }
     return { loggedIn: !!session }
@@ -113,12 +88,12 @@ export function useAuth() {
 
   async function logout() {
     await api.logout()
-    user.value = null
     clearAuthSession()
+    redirectToLogin()
   }
 
   return {
-    user: computed(() => user.value),
+    user,
     isLoading: computed(() => isLoading.value),
     isAuthenticated,
     login,
@@ -127,11 +102,16 @@ export function useAuth() {
   }
 }
 
-export function initAuth() {
+export async function initAuth() {
   loadStored()
+  if (store.state.auth.user) {
+    const ok = await tryRefreshFromCookie()
+    if (!ok) clearAuthSession()
+    // Router guard will redirect to login on next navigation when not authenticated
+  }
   isLoading.value = false
 }
 
 export function getAuthUser(): User | null {
-  return user.value
+  return store.state.auth.user
 }

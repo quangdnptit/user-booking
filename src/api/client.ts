@@ -13,19 +13,15 @@ import type {
 } from '../types'
 import {
   http,
-  setAuthSession,
-  persistAuthSession,
   clearAuthSession,
   API_BASE,
   authorizedFetch,
 } from './http'
 
-/** BE LoginResult + common json tags */
+/** BE LoginResult + common json tags (access only; refresh is in HttpOnly cookie). */
 function parseLoginResult(body: Record<string, unknown>): {
   accessToken: string
-  refreshToken: string
   expiresInSec: number
-  refreshExpiresInSec: number
   userId: string
   email: string
   fullName: string
@@ -35,13 +31,7 @@ function parseLoginResult(body: Record<string, unknown>): {
   const accessToken = String(
     body.AccessToken ?? body.access_token ?? body.accessToken ?? body.token ?? ''
   )
-  const refreshToken = String(
-    body.RefreshToken ?? body.refresh_token ?? body.refreshToken ?? ''
-  )
   const expiresInSec = Number(body.ExpiresIn ?? body.expires_in ?? body.expiresIn ?? 3600)
-  const refreshExpiresInSec = Number(
-    body.RefreshExpiresIn ?? body.refresh_expires_in ?? body.refreshExpiresIn ?? 604800
-  )
   const userId = String(body.UserID ?? body.user_id ?? body.userId ?? body.id ?? '')
   const email = String(body.Email ?? body.email ?? '')
   const fullName = String(body.FullName ?? body.full_name ?? body.fullName ?? email)
@@ -49,9 +39,7 @@ function parseLoginResult(body: Record<string, unknown>): {
   const amount = body.Amount != null ? Number(body.Amount) : body.amount != null ? Number(body.amount) : undefined
   return {
     accessToken,
-    refreshToken,
     expiresInSec: expiresInSec > 0 ? expiresInSec : 3600,
-    refreshExpiresInSec: refreshExpiresInSec > 0 ? refreshExpiresInSec : 604800,
     userId,
     email,
     fullName,
@@ -193,15 +181,16 @@ function mapSeat(
 }
 
 export const api = {
-  /** POST /api/v1/auth/login — LoginResult: AccessToken, RefreshToken, ExpiresIn, … */
+  /** POST /api/v1/auth/login — AccessToken + user in body; refresh token in HttpOnly cookie. */
   async login(credentials: LoginCredentials): Promise<{
     user: User
     accessToken: string
-    refreshToken: string
+    expiresInSec: number
   }> {
     const url = `${API_BASE}/api/v1/auth/login`
     const res = await fetch(url, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
         email: credentials.email,
@@ -228,15 +217,6 @@ export const api = {
     if (!r.accessToken || !r.userId) {
       throw new Error('Invalid login response: missing access token or user id')
     }
-    if (!r.refreshToken) {
-      throw new Error('Invalid login response: missing refresh token')
-    }
-    setAuthSession({
-      accessToken: r.accessToken,
-      refreshToken: r.refreshToken,
-      expiresInSec: r.expiresInSec,
-      refreshExpiresInSec: r.refreshExpiresInSec,
-    })
     const user: User = {
       id: r.userId,
       email: r.email || credentials.email,
@@ -244,14 +224,7 @@ export const api = {
       avatar: r.avatar,
       walletAmount: r.amount,
     }
-    persistAuthSession({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      avatar: user.avatar,
-      amount: r.amount,
-    })
-    return { user, accessToken: r.accessToken, refreshToken: r.refreshToken }
+    return { user, accessToken: r.accessToken, expiresInSec: r.expiresInSec }
   },
 
   /**
@@ -261,11 +234,12 @@ export const api = {
   async register(
     payload: RegisterPayload
   ): Promise<{
-    session: { user: User; accessToken: string; refreshToken: string } | null
+    session: { user: User; accessToken: string; expiresInSec: number } | null
   }> {
     const url = `${API_BASE}/api/v1/auth/register`
     const res = await fetch(url, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
         full_name: payload.full_name,
@@ -292,13 +266,7 @@ export const api = {
         ? { ...body, ...(body.user as Record<string, unknown>) }
         : body
     const r = parseLoginResult(nested)
-    if (r.accessToken && r.userId && r.refreshToken) {
-      setAuthSession({
-        accessToken: r.accessToken,
-        refreshToken: r.refreshToken,
-        expiresInSec: r.expiresInSec,
-        refreshExpiresInSec: r.refreshExpiresInSec,
-      })
+    if (r.accessToken && r.userId) {
       const user: User = {
         id: r.userId,
         email: r.email || payload.email,
@@ -306,14 +274,7 @@ export const api = {
         avatar: r.avatar,
         walletAmount: r.amount,
       }
-      persistAuthSession({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        avatar: user.avatar,
-        amount: r.amount,
-      })
-      return { session: { user, accessToken: r.accessToken, refreshToken: r.refreshToken } }
+      return { session: { user, accessToken: r.accessToken, expiresInSec: r.expiresInSec } }
     }
     return { session: null }
   },
