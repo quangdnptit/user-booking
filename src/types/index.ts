@@ -41,6 +41,8 @@ export interface Seat {
   /** Set for showtime seats API; defaults to AVAILABLE when omitted */
   status?: SeatStatus
   screen?: Screen
+  /** Price for this seat when returned by showtime seats API */
+  price?: number
 }
 
 export interface Showtime {

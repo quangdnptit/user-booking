@@ -18,14 +18,9 @@
             {{ formatDateTime(showtime.startTime) }} · {{ showtime.theater?.name }} · {{ showtime.screen?.name }}
           </p>
           <p class="mt-1 text-gray-200">
-            <span class="text-cinema-muted font-normal">Standard </span>
-            <span class="font-medium text-white">{{ showtime.currency }} {{ seatPriceStandard.toFixed(2) }}</span>
-            <span class="text-cinema-muted mx-1">·</span>
-            <span class="text-cinema-muted font-normal">Premium </span>
-            <span class="font-medium text-white">{{ showtime.currency }} {{ seatPricePremium.toFixed(2) }}</span>
-            <span class="text-cinema-muted mx-1">·</span>
-            <span class="text-cinema-muted font-normal">Wheelchair </span>
-            <span class="font-medium text-white">{{ showtime.currency }} {{ seatPriceWheelchair.toFixed(2) }}</span>
+            <span class="text-cinema-muted font-normal">From </span>
+            <span class="font-medium text-white">{{ showtime.currency }} {{ basePrice.toFixed(2) }}</span>
+            <span class="text-cinema-muted ml-1 text-sm">— Premium and wheelchair seats may cost more.</span>
           </p>
         </div>
 
@@ -200,18 +195,12 @@ const submitting = ref(false)
 const rows = computed(() => [...new Set(seats.value.map((s) => s.row))].sort())
 const maxCol = computed(() => Math.max(0, ...seats.value.map((s) => s.seatNumber)))
 const seatMap = computed(() => new Map(seats.value.map((s) => [`${s.row}-${s.seatNumber}`, s])))
-const PREMIUM_EXTRA = 5
-const WHEELCHAIR_EXTRA = 10
+const basePrice = computed(() => showtime.value?.price ?? 0)
 
-const seatPriceStandard = computed(() => showtime.value?.price ?? 0)
-const seatPricePremium = computed(() => (showtime.value?.price ?? 0) + PREMIUM_EXTRA)
-const seatPriceWheelchair = computed(() => (showtime.value?.price ?? 0) + WHEELCHAIR_EXTRA)
-
+/** Use seat price from API when present, otherwise showtime base price. */
 function priceForSeat(seat: Seat): number {
-  const base = showtime.value?.price ?? 0
-  if (seat.type === 'PREMIUM') return base + PREMIUM_EXTRA
-  if (seat.type === 'WHEELCHAIR') return base + WHEELCHAIR_EXTRA
-  return base
+  if (seat.price != null && Number.isFinite(seat.price)) return seat.price
+  return showtime.value?.price ?? 0
 }
 
 const total = computed(() => {

@@ -92,6 +92,7 @@ interface BackendSeat {
   isActive?: boolean
   roomId?: string
   seatStatus?: SeatStatus
+  price?: number
 }
 
 const SEAT_STATUSES: SeatStatus[] = ['AVAILABLE', 'UNAVAILABLE', 'BOOKED', 'LOCKED']
@@ -177,6 +178,7 @@ function mapSeat(
     isActive: b.isActive ?? true,
     status,
     screen,
+    price: b.price,
   }
 }
 
@@ -418,6 +420,8 @@ export const api = {
             : undefined
       const seatStatus = (status ||
         (isActive ? 'AVAILABLE' : 'UNAVAILABLE')) as SeatStatus
+      const price =
+        o.price != null ? Number(o.price) : o.seat_price != null ? Number(o.seat_price) : undefined
       return {
         id,
         seatRow,
@@ -426,6 +430,7 @@ export const api = {
         isActive,
         roomId,
         seatStatus,
+        price: Number.isFinite(price) ? price : undefined,
       }
     }
     const first = list[0] && typeof list[0] === 'object' ? (list[0] as Record<string, unknown>) : null
