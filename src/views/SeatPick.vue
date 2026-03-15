@@ -104,7 +104,7 @@
                 >
                 <span class="flex items-center gap-2"
                   ><span
-                    class="w-6 h-6 rounded shrink-0 bg-emerald-500 shadow ring-1 ring-emerald-700 ring-offset-1 border border-emerald-700"
+                    class="w-6 h-6 rounded shrink-0 bg-pink-500 shadow ring-1 ring-pink-700 ring-offset-1 border border-pink-700"
                     aria-hidden="true"
                   />
                   Your selection</span
@@ -264,9 +264,9 @@ function seatAt(row: string, num: number): Seat | undefined {
 function getSelectableSeatClass(seat: Seat): string {
   const selected = selectedSeatIds.value.includes(seat.id)
   if (selected) {
-    return 'bg-emerald-500 text-white ring-2 ring-emerald-600 ring-offset-1 shadow-md hover:bg-emerald-600'
+    return 'bg-pink-500 text-white ring-2 ring-pink-600 ring-offset-1 shadow-md hover:bg-pink-600'
   }
-  return `${SEAT_TYPE_STYLE[seat.type]} text-white hover:brightness-110 hover:ring-2 hover:ring-emerald-400/50 hover:ring-offset-2 hover:ring-offset-cinema-dark cursor-pointer`
+  return `${SEAT_TYPE_STYLE[seat.type]} text-white hover:brightness-110 hover:ring-2 hover:ring-pink-400/50 hover:ring-offset-2 hover:ring-offset-cinema-dark cursor-pointer`
 }
 
 /** Blocked seats: not clickable — booked / locked / unavailable */

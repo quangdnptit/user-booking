@@ -283,6 +283,37 @@ export const api = {
     clearAuthSession()
   },
 
+  /**
+   * GET /api/v1/users/me — current user info (user_id, email, full_name, balance, avatar, etc.).
+   */
+  async getMe(): Promise<User> {
+    const url = `${API_BASE}/api/v1/users/me`
+    const res = await authorizedFetch(url, { method: 'GET' })
+    const body = res.headers.get('content-type')?.includes('application/json')
+      ? await res.json().catch(() => ({}))
+      : {}
+    if (!res.ok) {
+      const msg =
+        typeof body === 'object' && body !== null && 'message' in body
+          ? String((body as { message: unknown }).message)
+          : `Failed to load profile (${res.status})`
+      throw new Error(msg)
+    }
+    const o = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
+    const id = String(o.user_id ?? o.userId ?? o.id ?? '')
+    const email = String(o.email ?? '')
+    const fullName = String(o.full_name ?? o.fullName ?? email)
+    const balance = o.balance != null ? Number(o.balance) : undefined
+    const avatar = o.avatar != null ? String(o.avatar) : undefined
+    return {
+      id,
+      email,
+      name: fullName,
+      avatar,
+      walletAmount: balance,
+    }
+  },
+
   async getMovies(): Promise<Movie[]> {
     const list = await http.get<BackendMovie[]>('/api/movies')
     return (Array.isArray(list) ? list : []).map(mapMovie)

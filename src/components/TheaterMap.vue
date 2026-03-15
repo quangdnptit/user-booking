@@ -88,7 +88,12 @@ function createMarkerIcon() {
   })
 }
 
-async function geocode(query: string): Promise<{ lat: number; lng: number } | null> {
+/** Nominatim allows 1 request per second; delay between retries. */
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function geocodeOne(query: string): Promise<{ lat: number; lng: number } | null> {
   const params = new URLSearchParams({
     q: query,
     format: 'json',
@@ -97,11 +102,29 @@ async function geocode(query: string): Promise<{ lat: number; lng: number } | nu
   const res = await fetch(`${NOMINATIM_BASE}/search?${params}`, { headers: NOMINATIM_HEADERS })
   if (!res.ok) return null
   const data = await res.json()
-  if (!data?.length) return null
+  if (!Array.isArray(data) || data.length === 0) return null
   const lat = parseFloat(data[0].lat)
   const lon = parseFloat(data[0].lon)
   if (Number.isNaN(lat) || Number.isNaN(lon)) return null
   return { lat, lng: lon }
+}
+
+/** Try several query variants; Nominatim often fails on "Name + full address" but finds "address only". */
+async function geocode(name: string, address: string): Promise<{ lat: number; lng: number } | null> {
+  const raw: string[] = [
+    `${name} ${address}`.trim(),
+    address.trim(),
+  ]
+  const parts = address.split(',').map((p) => p.trim()).filter(Boolean)
+  if (parts.length > 2) raw.push(parts.slice(0, 2).join(', '))
+  if (parts.length > 1) raw.push(parts[0])
+  const queries = [...new Set(raw.map((s) => s.trim()).filter(Boolean))]
+  for (let i = 0; i < queries.length; i++) {
+    if (i > 0) await delay(1100)
+    const coords = await geocodeOne(queries[i])
+    if (coords) return coords
+  }
+  return null
 }
 
 function setMarker(lat: number, lng: number) {
@@ -121,11 +144,10 @@ function initMap() {
 
 async function loadAndShow() {
   if (!props.address || !map) return
-  const query = `${props.name} ${props.address}`.trim()
   loading.value = true
   geocodeError.value = ''
   try {
-    const coords = await geocode(query)
+    const coords = await geocode(props.name, props.address)
     if (coords) {
       setMarker(coords.lat, coords.lng)
     } else {

@@ -10,15 +10,33 @@
       <div v-if="user" class="space-y-8">
         <Card class="animate-fade-in-up">
           <CardHeader title="Account" subtitle="Your details" />
-          <div class="flex flex-wrap items-center gap-6">
+          <div v-if="meLoading" class="py-6 flex justify-center">
+            <div
+              class="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"
+            />
+          </div>
+          <div v-else-if="meError" class="py-4 text-sm text-red-300">
+            {{ meError }}
+            <button
+              type="button"
+              class="mt-2 text-emerald-400 font-medium hover:underline"
+              @click="loadMe"
+            >
+              Try again
+            </button>
+          </div>
+          <div v-else class="flex flex-wrap items-center gap-6">
             <div
               class="w-16 h-16 rounded-full bg-cinema-surface border-2 border-white/[0.08] flex items-center justify-center text-2xl font-display font-bold text-emerald-400"
             >
               {{ userInitial }}
             </div>
             <div>
-              <p class="font-semibold text-white">{{ user.name || 'Guest' }}</p>
-              <p class="text-sm text-cinema-muted">{{ user.email }}</p>
+              <p class="font-semibold text-white">{{ displayName }}</p>
+              <p class="text-sm text-cinema-muted">{{ displayEmail }}</p>
+              <p v-if="displayBalance != null" class="text-sm text-emerald-400 mt-1">
+                Balance: {{ formatBalance(displayBalance) }}
+              </p>
               <p class="text-xs text-cinema-muted mt-1">
                 {{ pastBookings.length }} booking(s) in history
               </p>
@@ -67,7 +85,6 @@
                 <p class="text-sm text-cinema-muted mt-0.5">
                   {{ formatDateTime(b.startTime) }} · {{ b.theaterName }} · {{ b.screenName }}
                 </p>
-                <p class="text-xs text-cinema-muted mt-1">{{ b.seatCount }} seat(s)</p>
               </div>
               <div class="text-right">
                 <p class="font-semibold text-emerald-400">
@@ -111,11 +128,45 @@ const pastBookings = ref<PastBooking[]>([])
 const historyLoading = ref(false)
 const historyError = ref<string | null>(null)
 
+const me = ref<{ name: string; email: string; walletAmount?: number } | null>(null)
+const meLoading = ref(false)
+const meError = ref<string | null>(null)
+
 const userInitial = computed(() => {
   const u = user.value
   if (!u?.name) return u?.email?.slice(0, 1).toUpperCase() ?? '?'
   return u.name.slice(0, 1).toUpperCase()
 })
+
+const displayName = computed(() => me.value?.name ?? user.value?.name ?? 'Guest')
+const displayEmail = computed(() => me.value?.email ?? user.value?.email ?? '')
+const displayBalance = computed(() => me.value?.walletAmount ?? user.value?.walletAmount ?? null)
+
+function formatBalance(amount: number) {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+  }).format(amount)
+}
+
+async function loadMe() {
+  meLoading.value = true
+  meError.value = null
+  try {
+    const data = await api.getMe()
+    me.value = {
+      name: data.name,
+      email: data.email,
+      walletAmount: data.walletAmount,
+    }
+  } catch (e) {
+    meError.value = e instanceof Error ? e.message : 'Failed to load profile'
+    me.value = null
+  } finally {
+    meLoading.value = false
+  }
+}
 
 async function loadHistory() {
   const uid = user.value?.id
@@ -138,10 +189,14 @@ async function loadHistory() {
 watch(
   () => user.value?.id,
   (id) => {
-    if (id) loadHistory()
-    else {
+    if (id) {
+      loadHistory()
+      loadMe()
+    } else {
       pastBookings.value = []
       historyError.value = null
+      me.value = null
+      meError.value = null
     }
   },
   { immediate: true }
