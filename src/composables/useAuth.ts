@@ -76,7 +76,7 @@ export function useAuth() {
       password,
     })
     if (session) {
-      store.dispatch('auth/setSession', {
+      await store.dispatch('auth/setSession', {
         accessToken: session.accessToken,
         expiresInSec: session.expiresInSec,
         user: session.user,

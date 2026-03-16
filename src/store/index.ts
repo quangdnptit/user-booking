@@ -22,7 +22,7 @@ const auth = {
     user: (s: AuthState) => s.user,
     isAuthenticated: (s: AuthState) => !!s.user,
   },
-  mutations: {
+  mutations: { //state changes
     SET_ACCESS_TOKEN(s: AuthState, token: string | null) {
       s.accessToken = token
     },
