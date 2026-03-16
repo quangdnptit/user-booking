@@ -176,11 +176,16 @@ async function request<T>(
   if (!res.ok) {
     if (res.status === 401) clearAuthAndRedirectToLogin()
     const message =
-      typeof body === 'object' && body !== null && 'message' in body
-        ? String((body as { message: unknown }).message)
-        : typeof body === 'string'
-          ? body
-          : `Request failed with status ${res.status}`
+      typeof body === 'object' &&
+      body !== null &&
+      'error' in body &&
+      typeof (body as { error: unknown }).error === 'string'
+        ? String((body as { error: unknown }).error)
+        : typeof body === 'object' && body !== null && 'message' in body
+          ? String((body as { message: unknown }).message)
+          : typeof body === 'string'
+            ? body
+            : `Request failed with status ${res.status}`
     const { showError } = useToast()
     showError(message)
     throw new ApiError(message, res.status, body)
@@ -194,11 +199,6 @@ export const http = {
 
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
-
-  put: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: 'PUT', body: body ? JSON.stringify(body) : undefined }),
-
-  delete: (path: string) => request<void>(path, { method: 'DELETE' }),
 }
 
 /** For fetch() outside http — booking, seats, etc. */

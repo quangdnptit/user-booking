@@ -18,6 +18,18 @@ import {
   authorizedFetch,
 } from './http'
 
+function extractError(body: unknown, fallback: string): string {
+  if (
+    body &&
+    typeof body === 'object' &&
+    'error' in body &&
+    typeof (body as { error: unknown }).error === 'string'
+  ) {
+    return (body as { error: string }).error
+  }
+  return fallback
+}
+
 /** BE LoginResult + common json tags (access only; refresh is in HttpOnly cookie). */
 function parseLoginResult(body: Record<string, unknown>): {
   accessToken: string
@@ -199,16 +211,9 @@ export const api = {
         password: credentials.password,
       }),
     })
-    const body = res.headers.get('content-type')?.includes('application/json')
-      ? ((await res.json().catch(() => ({}))) as Record<string, unknown>)
-      : {}
+    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
     if (!res.ok) {
-      const msg =
-        typeof body.message === 'string'
-          ? body.message
-          : typeof body.error === 'string'
-            ? body.error
-            : `Login failed (${res.status})`
+      const msg = extractError(body, `Login failed (${res.status})`)
       throw new Error(msg)
     }
     const nested =
@@ -249,18 +254,9 @@ export const api = {
         password: payload.password,
       }),
     })
-    const body = res.headers.get('content-type')?.includes('application/json')
-      ? ((await res.json().catch(() => ({}))) as Record<string, unknown>)
-      : {}
+    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
     if (!res.ok) {
-      const msg =
-        typeof body.message === 'string'
-          ? body.message
-          : typeof body.error === 'string'
-            ? body.error
-            : Array.isArray(body.errors)
-              ? String((body.errors as unknown[])[0])
-              : `Registration failed (${res.status})`
+      const msg = extractError(body, `Registration failed (${res.status})`)
       throw new Error(msg)
     }
     const nested =
@@ -291,14 +287,9 @@ export const api = {
   async getMe(): Promise<User> {
     const url = `${API_BASE}/api/v1/users/me`
     const res = await authorizedFetch(url, { method: 'GET' })
-    const body = res.headers.get('content-type')?.includes('application/json')
-      ? await res.json().catch(() => ({}))
-      : {}
+    const body = await res.json().catch(() => ({} as unknown))
     if (!res.ok) {
-      const msg =
-        typeof body === 'object' && body !== null && 'message' in body
-          ? String((body as { message: unknown }).message)
-          : `Failed to load profile (${res.status})`
+      const msg = extractError(body, `Failed to load profile (${res.status})`)
       throw new Error(msg)
     }
     const o = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
@@ -373,11 +364,11 @@ export const api = {
   async getSeatsByShowtime(showtimeId: string, fallbackScreenId?: string): Promise<Seat[]> {
     const url = `${API_BASE}/showtimes/${showtimeId}/seats`
     const res = await fetch(url, { headers: { Accept: 'application/json' } })
+    const raw = (await res.json().catch(() => ({}))) as unknown
     if (!res.ok) {
-      const text = await res.text()
-      throw new Error(text || `Seats request failed (${res.status})`)
+      const msg = extractError(raw, `Seats request failed (${res.status})`)
+      throw new Error(msg)
     }
-    const raw = await res.json()
     const list: unknown[] = Array.isArray(raw)
       ? raw
       : raw && typeof raw === 'object' && Array.isArray((raw as { seats?: unknown[] }).seats)
@@ -461,16 +452,9 @@ export const api = {
         user_id: req.user_id,
       }),
     })
-    const body = res.headers.get('content-type')?.includes('application/json')
-      ? await res.json().catch(() => ({}))
-      : await res.text()
+    const body = await res.json().catch(() => ({} as unknown))
     if (!res.ok) {
-      const msg =
-        typeof body === 'object' && body !== null && 'message' in body
-          ? String((body as { message: unknown }).message)
-          : typeof body === 'string' && body
-            ? body
-            : `Booking failed (${res.status})`
+      const msg = extractError(body, `Booking failed (${res.status})`)
       throw new Error(msg)
     }
     const o = (typeof body === 'object' && body !== null ? body : {}) as Record<
@@ -499,14 +483,9 @@ export const api = {
   async getBookingHistory(userId: string): Promise<PastBooking[]> {
     const url = `${API_BASE}/api/v1/users/${encodeURIComponent(userId)}/bookings`
     const res = await authorizedFetch(url, { method: 'GET' })
-    const body = res.headers.get('content-type')?.includes('application/json')
-      ? await res.json().catch(() => null)
-      : null
+    const body = await res.json().catch(() => null as unknown)
     if (!res.ok) {
-      const msg =
-        typeof body === 'object' && body !== null && 'message' in body
-          ? String((body as { message: unknown }).message)
-          : `Could not load booking history (${res.status})`
+      const msg = extractError(body, `Could not load booking history (${res.status})`)
       throw new Error(msg)
     }
     const list: unknown[] = Array.isArray(body)

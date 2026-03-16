@@ -116,13 +116,6 @@
                 >
                 <span class="flex items-center gap-2 max-w-[14rem]"
                   ><span
-                    class="w-6 h-6 rounded shrink-0 border-2 border-amber-700 bg-amber-500 shadow-sm"
-                    aria-hidden="true"
-                  />
-                  <span><strong class="text-amber-400">Locked</strong> — held / not for sale</span></span
-                >
-                <span class="flex items-center gap-2 max-w-[14rem]"
-                  ><span
                     class="w-6 h-6 rounded shrink-0 border-2 border-dashed border-stone-600 bg-stone-500"
                     aria-hidden="true"
                   />
@@ -314,7 +307,14 @@ onMounted(async () => {
 })
 
 async function handleSubmit() {
-  if (!showtime.value || selectedSeatIds.value.length === 0) return
+  if (!showtime.value) {
+    showError('Showtime not available. Please go back and try again.')
+    return
+  }
+  if (selectedSeatIds.value.length === 0) {
+    showError('Please select at least one seat.')
+    return
+  }
   const uid = user.value?.id
   if (!uid) {
     showError('Please log in to book seats.')
@@ -333,10 +333,11 @@ async function handleSubmit() {
       seatCount: selectedSeatIds.value.length,
     }
     sessionStorage.setItem('booking-confirmation', JSON.stringify(payload))
-    router.push({ name: 'BookingConfirmation' })
+    await router.push({name: 'BookingConfirmation'})
     showSuccess('Booking confirmed!')
   } catch (e) {
-    showError(e instanceof Error ? e.message : 'Booking failed')
+    const msg = e instanceof Error ? e.message : 'Booking failed'
+    showError(msg)
   } finally {
     submitting.value = false
   }
